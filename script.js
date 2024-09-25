@@ -1,97 +1,104 @@
-const players = (() => {
-    const PLAYER_X_CLASS = 'x';
-    const PLAYER_O_CLASS = 'circle';
-    return { PLAYER_O_CLASS, PLAYER_X_CLASS };
-})();
+const cells = document.querySelectorAll('.cell'); 
+const restartButton = document.querySelector('.restartButton');
+const playAgainButton = document.querySelector('#playAgainButton');
+const turnMessage = document.querySelector('.turnMessage');
+const winningMessage = document.querySelector('.winningMessage');
+const winnerSpan = document.querySelector('.winner');
+const drawMessage = document.querySelector('.drawMessage'); 
+const overlay = document.querySelector('.overlay'); 
+const winningMessageContainer = document.querySelector('.winningMessageContainer');
+const winningConditions = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6]
+];
 
-const gameboard = (() => {
-    const cellElements = document.querySelectorAll('[data-cell]');
-    const boardElement = document.getElementById('board');
-    const winningMessageElement = document.getElementById('winningMessage');
-    const restartButton = document.getElementById('restartButton');
-    const winningMessageTextElement = document.getElementById('winningMessageText');
-    return { cellElements, boardElement, winningMessageElement, restartButton, winningMessageTextElement };
-})(); 
+let cellOptions = ["", "", "", "", "", "", "", "", ""];
+let currentPlayer = 'X';
+let gameRunning = false;
 
-const gamelogic = (({ cellElements, boardElement, winningMessageElement, winningMessageTextElement, restartButton, PLAYER_X_CLASS, PLAYER_O_CLASS }) => {
-    const WINNING_COMBINATIONS = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    ];
+startGame(); 
 
-    let isPlayer_O_Turn = false;
+function startGame() {
+    cells.forEach((cell, index) => {
+        cell.setAttribute('data-index', index);
+        cell.addEventListener('click', cellClicked);
+    });
+    restartButton.addEventListener('click', restartGame);
+    playAgainButton.addEventListener('click', restartGame); 
+    turnMessage.textContent = `It's Player ${currentPlayer}'s turn.`; 
+    gameRunning = true; 
+}
 
-    restartButton.addEventListener('click', startGame);
+function cellClicked() {
+    const cellIndex = this.getAttribute('data-index');
+    if (cellOptions[cellIndex] !== "" || !gameRunning) {
+        return;
+    }
+    updateCell(this, cellIndex);
+    checkWinner();
+}
 
-    function placeMark(cell, currentClass) {
-        cell.classList.add(currentClass);
-        cell.innerText = currentClass === players.PLAYER_X_CLASS ? 'X' : 'O'; 
+function updateCell(cell, index) {
+    cellOptions[index] = currentPlayer; 
+    cell.textContent = currentPlayer; 
+    
+    if (currentPlayer === 'X') {
+        cell.classList.add('x'); 
+    } else {
+        cell.classList.add('o'); 
     }
 
+    cell.classList.add('hover-disabled'); 
+    changePlayer();
+}
 
-    function swapTurns() {
-        isPlayer_O_Turn = !isPlayer_O_Turn;
-    }
+function changePlayer() {
+    currentPlayer = (currentPlayer === 'X') ? 'O' : 'X';
+    turnMessage.textContent = `It's Player ${currentPlayer}'s turn.`;
+}
 
-    function displayTurn() {
-        const { PLAYER_X_CLASS, PLAYER_O_CLASS } = players;
-        boardElement.classList.remove(PLAYER_X_CLASS, PLAYER_O_CLASS);
-        const currentTurnText = document.getElementById('currentTurn');
-        
-        if (isPlayer_O_Turn) {
-            boardElement.classList.add(PLAYER_O_CLASS);
-            currentTurnText.innerText = "Current Turn: Player O"; 
-        } else {
-            boardElement.classList.add(PLAYER_X_CLASS);
-            currentTurnText.innerText = "Current Turn: Player X"; 
+function restartGame() {
+    cellOptions = ["", "", "", "", "", "", "", "", ""];
+    cells.forEach(cell => {
+        cell.textContent = "";
+        cell.classList.remove('hover-disabled', 'x', 'o'); 
+        cell.style.opacity = "1"; 
+        cell.classList.remove('bounce'); 
+    });
+    currentPlayer = 'X';
+    turnMessage.textContent = `It's Player ${currentPlayer}'s turn.`;
+    overlay.style.display = "none"; 
+    winningMessageContainer.style.display = "none"; 
+    winningMessage.style.display = "none"; 
+    drawMessage.style.display = "none"; 
+    gameRunning = true; 
+}
+
+function checkWinner() {
+    for (let condition of winningConditions) {
+        const [a, b, c] = condition;
+        if (cellOptions[a] && cellOptions[a] === cellOptions[b] && cellOptions[a] === cellOptions[c]) {
+            winnerSpan.textContent = cellOptions[a]; 
+            overlay.style.display = "block"; 
+            winningMessageContainer.style.display = "block"; 
+            winningMessage.style.display = "block"; 
+            drawMessage.style.display = "none"; 
+            return;
         }
     }
-
-
-    function checkWin(currentClass) {
-        return WINNING_COMBINATIONS.some(combination => 
-            combination.every(index => cellElements[index].classList.contains(currentClass))
-        );
+    
+    if (!cellOptions.includes("")) {
+        turnMessage.textContent = "It's a draw!";
+        overlay.style.display = "block"; 
+        winningMessageContainer.style.display = "block";
+        winningMessage.style.display = "none"; 
+        drawMessage.style.display = "block"; 
+        gameRunning = false; 
     }
-
-    function handleCellClick(e) {
-        const cell = e.target;
-        const currentClass = isPlayer_O_Turn ? players.PLAYER_O_CLASS : players.PLAYER_X_CLASS;
-        placeMark(cell, currentClass);
-        
-        if (checkWin(currentClass)) {
-            endGame(false); 
-        } else if (isDraw()) {
-            endGame(true);
-        } else {
-            swapTurns();
-            displayTurn();
-        }
-    }
-
-    function startGame() {
-        isPlayer_O_Turn = false;
-        cellElements.forEach(cell => {
-            cell.classList.remove(PLAYER_X_CLASS, PLAYER_O_CLASS);
-            cell.innerText = ''; 
-            cell.removeEventListener('click', handleCellClick);
-            cell.addEventListener('click', handleCellClick, { once: true });
-        });
-        displayTurn();
-        winningMessageElement.classList.remove('show');
-    }
-
-    function endGame(draw) {
-        winningMessageTextElement.innerText = draw ? "It's a draw!" : `Player with ${isPlayer_O_Turn ? "O's" : "X's"} wins!`;
-        winningMessageElement.classList.add('show'); 
-    }
-
-    function isDraw() {
-        return [...cellElements].every(cell => 
-            cell.classList.contains(players.PLAYER_X_CLASS) || cell.classList.contains(players.PLAYER_O_CLASS)
-        );
-    }
-
-    startGame();
-})(gameboard, players);
+}
